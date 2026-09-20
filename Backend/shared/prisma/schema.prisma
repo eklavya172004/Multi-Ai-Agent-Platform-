@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  assistant
+}
+
+enum PaymentStatus {
+  created
+  paid
+  failed
+}
+
+model User {
+  id              String         @id @default(cuid())
+  firebaseUID     String         @unique
+  name            String?
+  email           String         @unique
+  avatar          String?
+
+  plan            String         @default("free")
+  credits         Int            @default(100)
+  totalCredits    Int            @default(100)
+  planExpiresAt   DateTime?
+
+  conversations   Conversation[]
+  payments        Payment[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Conversation {
+  id          String      @id @default(cuid())
+
+  title       String      @default("New Chat")
+
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages    Message[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Message {
+  id              String        @id @default(cuid())
+
+  conversationId  String
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role            Role
+  content         String
+  images          String[] @default([])
+  artifacts       Artifact[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Artifact {
+  id          String          @id @default(cuid())
+
+  title       String?
+
+  type        String
+
+  messageId   String
+  message     Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  files       ArtifactFile[]
+}
+
+model ArtifactFile {
+  id          String          @id @default(cuid())
+
+  name        String
+  content     String
+
+  artifactId  String
+  artifact    Artifact        @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id          String         @id @default(cuid())
+
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId     String         @unique
+  paymentId   String?
+
+  amount      Float
+  currency    String         @default("INR")
+
+  credits     Int
+  plan        String
+
+  status      PaymentStatus  @default(created)
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
